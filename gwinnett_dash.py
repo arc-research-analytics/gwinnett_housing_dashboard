@@ -9,13 +9,13 @@ import pydeck as pdk
 county_var = 'Gwinnett'
 
 # global variables for the pydeck chropleth map
-latitude_2D = 33.95737878948156
-latitude_3D = 33.95737878948156
-longitude_2D = -84.02506266471877
-longitude_3D = -84.02506266471877
+latitude_2D = 34.00004206460306 
+latitude_3D = 34.21605570771888
+longitude_2D = -83.96744602516628
+longitude_3D = -83.9150149112633
 min_zoom = 8
 max_zoom = 15
-zoom_2D = 9.1  # lower values zoom out, higher values zoom in
+zoom_2D = 8.8  # lower values zoom out, higher values zoom in
 zoom_3D = 8.2
 map_height = 575
 
