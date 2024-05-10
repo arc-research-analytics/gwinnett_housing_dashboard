@@ -15,8 +15,8 @@ longitude_2D = -84.02506266471877
 longitude_3D = -84.02506266471877
 min_zoom = 8
 max_zoom = 15
-zoom_2D = 9.5  # lower values zoom out, higher values zoom in
-zoom_3D = 10.4
+zoom_2D = 9.1  # lower values zoom out, higher values zoom in
+zoom_3D = 8.2
 map_height = 575
 
 # set choropleth colors for the map
@@ -85,9 +85,9 @@ dash_variable = st.sidebar.radio(
 
 # dictionary for converting housing dashboard variables into actionable values to be used in the mapping functions
 dash_variable_dict = {
-    'Total sales': ['YearBuilt', 'count', '{:,.0f}', 'Total sales', ',.0f'],
+    'Total sales': ['yr_blt', 'count', '{:,.0f}', 'Total sales', ',.0f'],
     'Price (per SF)': ['price_sf', 'median', '${:.2f}', 'Median price (per SF)', '$.0f'],
-    'Price (overall)': ['TransferAmount', 'median', '${:,.0f}', 'Median price (overall)', '$,.0f']
+    'Price (overall)': ['sale_amt', 'median', '${:,.0f}', 'Median price (overall)', '$,.0f']
 }
 
 # Sidebar divider #1
@@ -215,7 +215,7 @@ base_map_dict = {
 def load_tab_data():
     # load the data
     df = pd.read_csv(
-        'Data/Gwinnett_19-24.csv',
+        'Data/Gwinnett_20-24.csv',
         thousands=',',
         keep_default_na=False,
     )
@@ -225,7 +225,7 @@ def load_tab_data():
 
     # Drop the unneeded columns
     df.drop(
-        ['PropertyAddressFull', 'geometry'],
+        ['geometry'],
         axis=1,
         inplace=True)
 
@@ -257,15 +257,15 @@ def filter_data_map():
         filtered_df = df[
             (df['year'] >= year_lower_bound) &
             (df['year'] <= year_upper_bound) &
-            (df['YearBuilt'] >= vintage_lower_bound) &
-            (df['YearBuilt'] <= vintage_upper_bound) &
+            (df['yr_blt'] >= vintage_lower_bound) &
+            (df['yr_blt'] <= vintage_upper_bound) &
             (df['Sub_geo'].isin(sub_geo))]
     else:  # do not apply a sub-geography filter
         filtered_df = df[
             (df['year'] >= year_lower_bound) &
             (df['year'] <= year_upper_bound) &
-            (df['YearBuilt'] >= vintage_lower_bound) &
-            (df['YearBuilt'] <= vintage_upper_bound)
+            (df['yr_blt'] >= vintage_lower_bound) &
+            (df['yr_blt'] <= vintage_upper_bound)
         ]
 
     # now group by GEOID, i.e. Census tract
@@ -274,7 +274,7 @@ def filter_data_map():
         dash_variable_dict[dash_variable][0]: dash_variable_dict[dash_variable][1],
 
         # this second agg will add up the total sales in each CT
-        'YearBuilt': 'count',
+        'yr_blt': 'count',
 
         # this third agg will get the name of the sub geometry for each Census tract
         'Sub_geo': pd.Series.mode
@@ -410,6 +410,8 @@ def mapper_3D():
     # gonna be ugly as sin, but format the proper column
     joined_df['var_formatted'] = joined_df[dash_variable_dict[dash_variable][0]].apply(
         lambda x: dash_variable_dict[dash_variable][2].format((x)))
+    
+    joined_df['count_formatted'] = joined_df['yr_blt'].apply(lambda x: '{:,}'.format(x))
 
     # create a 'label' column
     joined_df['dashboard_var_label'] = dash_variable
@@ -447,14 +449,14 @@ def mapper_3D():
         filled=True,
         wireframe=False,
         extruded=True,
-        get_elevation='YearBuilt * 25',
+        get_elevation='yr_blt * 25',
         get_fill_color='choro_color',
         get_line_color='choro_color',
         line_width_min_pixels=1
     )
 
     tooltip = {
-        "html": "Median {dashboard_var_label}: <b>{var_formatted}</b><br>Total sales: <b>{YearBuilt}</b><hr style='margin: 10px auto; opacity:0.5; border-top: 2px solid white; width:85%'>\
+        "html": "Median {dashboard_var_label}: <b>{var_formatted}</b><br>Total sales: <b>{count_formatted}</b><hr style='margin: 10px auto; opacity:0.5; border-top: 2px solid white; width:85%'>\
                     Census Tract {GEOID} <br>\
                     {Sub_geo}",
         "style": {"background": "rgba(2,43,58,0.7)",
@@ -489,13 +491,13 @@ def filter_data_chart():
     # Now apply filters based on transaction year, construction vintage, and sub-geography (if applicable)
     if geography_included == 'City/Region':  # apply a sub-geography filter
         filtered_df = df[
-            (df['YearBuilt'] >= vintage_lower_bound) &
-            (df['YearBuilt'] <= vintage_upper_bound) &
+            (df['yr_blt'] >= vintage_lower_bound) &
+            (df['yr_blt'] <= vintage_upper_bound) &
             (df['Sub_geo'].isin(sub_geo))]
     else:  # do not apply a sub-geography filter
         filtered_df = df[
-            (df['YearBuilt'] >= vintage_lower_bound) &
-            (df['YearBuilt'] <= vintage_upper_bound)
+            (df['yr_blt'] >= vintage_lower_bound) &
+            (df['yr_blt'] <= vintage_upper_bound)
         ]
 
     # now group by month so we get a longitudinal trend for each variable that is selected
@@ -626,11 +628,11 @@ def plotly_charter():
 kpi_df = filter_data_map()[0]
 
 # calculate & format all necessary KPI values from the filtered data
-median_vintage = '{:.0f}'.format(kpi_df['YearBuilt'].median())
-median_sf = '{:,.0f}'.format(kpi_df['AreaGross'].median())
+median_vintage = '{:.0f}'.format(kpi_df['yr_blt'].median())
+median_sf = '{:,.0f}'.format(kpi_df['home_size'].median())
 total_sales = '{:,.0f}'.format(kpi_df.shape[0])
 median_price_sf = '${:.0f}'.format(kpi_df['price_sf'].median())
-median_price = '${:,.0f}'.format(kpi_df['TransferAmount'].median())
+median_price = '${:,.0f}'.format(kpi_df['sale_amt'].median())
 
 
 # calculate variables from the filtered dataframe that will drive the YoY change KPIs
@@ -640,8 +642,8 @@ delta_total_sales = '{:.1%}'.format((df_secondYear['price_sf'].count() -
                                      df_firstYear['price_sf'].count()) / df_firstYear['price_sf'].count())
 delta_price_sf = '{:.1%}'.format((df_secondYear['price_sf'].median() -
                                   df_firstYear['price_sf'].median()) / df_firstYear['price_sf'].median())
-delta_price = '{:.1%}'.format((df_secondYear['TransferAmount'].median() -
-                               df_firstYear['TransferAmount'].median()) / df_firstYear['TransferAmount'].median())
+delta_price = '{:.1%}'.format((df_secondYear['sale_amt'].median() -
+                               df_firstYear['sale_amt'].median()) / df_firstYear['sale_amt'].median())
 
 # dictionary to pick out which KPI metrics to show
 KPI_dict = {
